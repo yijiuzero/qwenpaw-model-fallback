@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.env
+config.json
+_startup_debug.log
