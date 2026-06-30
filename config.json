@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "max_retries_per_model": 2,
+  "fallback_chain": [],
+  "retryable_status_codes": [429, 500, 502, 503, 504],
+  "exclude_status_codes": [401, 403, 404]
+}
