@@ -1,7 +1,18 @@
 # -*- coding: utf-8 -*-
 """Model Fallback Plugin - Backend Entry Point
+============================================
 
-安装后，在 QwenPaw Console → 工具设置 → Model Fallback 中配置。
+Auto-failover for OpenClaw: when the primary model fails, seamlessly
+switch to backup models. Built-in circuit breaker prevents hammering
+dead endpoints.
+
+Configure via Console UI → Tool Settings → Model Fallback,
+or use the /fallback slash command.
+
+模型降级容灾插件：主模型失败时自动切换到备用模型。
+在 Console → 工具设置 → Model Fallback 中配置。
+
+OpenClaw Edition / OpenClaw 版
 """
 
 import json

@@ -1,8 +1,12 @@
 {
   "id": "model-fallback",
-  "name": "Model Fallback",
+  "name": "Model Fallback / 模型降级",
   "kind": "provider-router",
-  "description": "模型降级容灾插件。主模型挂了自动切到备用模型，支持熔断器防止反复尝试已下线端点。",
+  "description": "Auto-failover plugin: when the primary model fails, seamlessly switch to backup models. Built-in circuit breaker prevents hammering dead endpoints. / 模型降级容灾插件：主模型失败时自动切换到备用模型，内置熔断器保护。",
+  "description_i18n": {
+    "zh-CN": "模型降级容灾插件：主模型失败时自动切换到备用模型，支持熔断器防止反复尝试已下线端点。",
+    "en-US": "Auto-failover plugin for LLM models. When the primary model fails, seamlessly falls back to backup models. Built-in circuit breaker prevents repeatedly hammering dead endpoints."
+  },
   "author": "yijiuzero",
   "version": "1.2.0",
   "activation": {
@@ -11,6 +15,7 @@
   "entry": {
     "backend": "backend/main.py"
   },
+  "tags": ["fallback", "model", "degradation", "reliability", "circuit-breaker"],
   "min_version": "1.1.0",
   "configSchema": {
     "type": "object",
@@ -18,130 +23,130 @@
     "properties": {
       "enabled": {
         "type": "boolean",
-        "description": "开启后，主模型调用失败时将自动切换到备用模型"
+        "description": "Enable fallback: when the primary model fails, automatically switch to backups. / 开启后，主模型调用失败时将自动切换到备用模型"
       },
       "max_retries_per_model": {
         "type": "integer",
         "minimum": 1,
         "maximum": 10,
-        "description": "每个模型失败后重试几次再切下一个（默认2次）"
-      },
-      "fallback_model_1": {
-        "type": "string",
-        "minLength": 1,
-        "description": "① 备用模型名称，例如 deepseek-chat"
+        "description": "Retries per model before cascading to next (default: 2). / 每个模型失败后重试几次再切下一个（默认2次）"
       },
       "fallback_url_1": {
         "type": "string",
         "format": "uri",
-        "description": "① Base URL，例如 https://api.deepseek.com"
+        "description": "① Backup Base URL, e.g. https://api.deepseek.com / ① 备用模型 API 地址"
       },
       "fallback_key_1": {
         "type": "string",
-        "description": "① API Key"
+        "description": "① Backup API Key / ① 备用模型 API 密钥"
       },
-      "fallback_model_2": {
+      "fallback_model_1": {
         "type": "string",
-        "description": "② 备用模型名称（可选）"
+        "minLength": 1,
+        "description": "① Backup model name, e.g. deepseek-chat / ① 备用模型名称"
       },
       "fallback_url_2": {
         "type": "string",
         "format": "uri",
-        "description": "② Base URL（可选）"
+        "description": "② Backup Base URL (optional) / ② 备用模型 API 地址（可选）"
       },
       "fallback_key_2": {
         "type": "string",
-        "description": "② API Key（可选）"
+        "description": "② Backup API Key (optional) / ② 备用模型 API 密钥（可选）"
       },
-      "fallback_model_3": {
+      "fallback_model_2": {
         "type": "string",
-        "description": "③ 备用模型名称（可选）"
+        "description": "② Backup model name (optional) / ② 备用模型名称（可选）"
       },
       "fallback_url_3": {
         "type": "string",
         "format": "uri",
-        "description": "③ Base URL（可选）"
+        "description": "③ Backup Base URL (optional) / ③ 备用模型 API 地址（可选）"
       },
       "fallback_key_3": {
         "type": "string",
-        "description": "③ API Key（可选）"
+        "description": "③ Backup API Key (optional) / ③ 备用模型 API 密钥（可选）"
+      },
+      "fallback_model_3": {
+        "type": "string",
+        "description": "③ Backup model name (optional) / ③ 备用模型名称（可选）"
       },
       "cb_failure_threshold": {
         "type": "integer",
         "minimum": 1,
         "maximum": 20,
-        "description": "熔断器：连续失败多少次后熔断（默认4次）"
+        "description": "Circuit breaker: consecutive failures to trigger open (default: 4). / 熔断器：连续失败多少次后熔断（默认4次）"
       },
       "cb_timeout_seconds": {
         "type": "integer",
         "minimum": 5,
         "maximum": 600,
-        "description": "熔断器：熔断后等多久再试探恢复（默认60秒）"
+        "description": "Circuit breaker: seconds before half-open retry (default: 60). / 熔断器：熔断后等多久再试探恢复（默认60秒）"
       },
       "cb_success_threshold": {
         "type": "integer",
         "minimum": 1,
         "maximum": 10,
-        "description": "熔断器：半开试探成功后连续成功几次才关闭熔断器（默认2次）"
+        "description": "Circuit breaker: consecutive successes to close (default: 2). / 熔断器：半开试探成功后连续成功几次才关闭熔断器（默认2次）"
       }
     }
   },
   "uiHints": {
     "enabled": {
-      "label": "启用降级",
-      "help": "开启后，主模型调用失败时将自动切换到备用模型"
+      "label": "Enable / 启用降级",
+      "help": "When enabled, switches to backup models on primary failure. / 开启后主模型失败时将自动切换到备用模型"
     },
     "max_retries_per_model": {
-      "label": "每模型重试次数",
-      "help": "每个模型失败后重试几次再切下一个（默认2次）"
+      "label": "Retries / 重试次数",
+      "help": "How many retries per model before cascading (default: 2). / 每个模型失败后重试几次再切下一个（默认2次）"
     },
     "fallback_url_1": {
       "label": "① Base URL",
-      "help": "备用模型的 API 地址，例如 https://api.deepseek.com"
+      "help": "Backup API endpoint, e.g. https://api.deepseek.com / 备用模型的 API 地址"
     },
     "fallback_key_1": {
       "label": "① API Key",
-      "help": "备用模型的 API 密钥"
+      "help": "Backup API key / 备用模型的 API 密钥"
     },
     "fallback_model_1": {
-      "label": "① 模型名称",
-      "help": "备用模型的名称，例如 deepseek-chat"
+      "label": "① Model / 模型名称",
+      "help": "Backup model name, e.g. deepseek-chat / 备用模型的名称"
     },
     "fallback_url_2": {
-      "label": "② Base URL（可选）",
-      "help": "第二个备用模型的 API 地址"
+      "label": "② Base URL (opt)",
+      "help": "2nd backup API endpoint (optional) / 第二个备用模型的 API 地址（可选）"
     },
     "fallback_key_2": {
-      "label": "② API Key（可选）",
-      "help": "第二个备用模型的 API 密钥"
+      "label": "② API Key (opt)",
+      "help": "2nd backup API key (optional) / 第二个备用模型的 API 密钥（可选）"
     },
     "fallback_model_2": {
-      "label": "② 模型名称（可选）",
-      "help": "第二个备用模型，填了 Base URL 和 API Key 才生效"
+      "label": "② Model (opt) / 模型名称（可选）",
+      "help": "2nd backup model name (optional) / 第二个备用模型的名称"
     },
     "fallback_url_3": {
-      "label": "③ Base URL（可选）",
-      "help": "第三个备用模型的 API 地址"
+      "label": "③ Base URL (opt)",
+      "help": "3rd backup API endpoint (optional) / 第三个备用模型的 API 地址（可选）"
     },
     "fallback_key_3": {
-      "label": "③ API Key（可选）",
-      "help": "第三个备用模型的 API 密钥"
+      "label": "③ API Key (opt)",
+      "help": "3rd backup API key (optional) / 第三个备用模型的 API 密钥（可选）"
     },
     "fallback_model_3": {
-      "label": "③ 模型名称（可选）",
-      "help": "第三个备用模型"
+      "label": "③ Model (opt) / 模型名称（可选）",
+      "help": "3rd backup model name (optional) / 第三个备用模型的名称"
     },
     "cb_failure_threshold": {
-      "label": "熔断器：失败阈值",
-      "help": "连续失败多少次后熔断该模型（默认4次）"
+      "label": "CB: Failure Threshold / 失败阈值",
+      "help": "Consecutive failures to trip the breaker (default: 4). / 连续失败多少次后熔断（默认4次）"
     },
     "cb_timeout_seconds": {
-      "label": "熔断器：恢复等待秒数",
-      "help": "熔断后等多久再试探恢复（默认60秒）"
+      "label": "CB: Timeout / 恢复等待秒数",
+      "help": "Seconds before half-open retry (default: 60). / 熔断后等多久再试探恢复（默认60秒）"
     },
     "cb_success_threshold": {
-      "label": "熔断器：恢复成功阈值",
-      "help": "半开试探成功后连续成功几次才关闭熔断器（默认2次）"
+      "label": "CB: Success Threshold / 恢复成功阈值",
+      "help": "Consecutive successes in half-open to close breaker (default: 2). / 半开试探成功后连续成功几次才关闭熔断器（默认2次）"
     }
   }
 }

@@ -1,77 +1,111 @@
-# Model Fallback Plugin
+# Model Fallback Plugin / 模型降级插件
 
-模型降级容灾插件。当 QwenPaw 主模型调用失败时，自动切换到用户配置的备用模型链。
+**English** | [中文](#zh-cn)
 
-## 功能
+Auto-failover plugin for OpenClaw. When the primary model fails, seamlessly switch to backup models. Built-in circuit breaker prevents repeatedly hammering dead endpoints.
 
-- 主模型失败时自动降级到备用模型
-- 支持多级降级（主 → 备1 → 备2 → ...）
-- 每个模型可独立配置重试次数
-- 区分瞬时错误（触发降级）和永久错误（如 401 认证失败，不降级）
-- 提供 HTTP API 动态管理降级配置
+---
 
-## 安装
+## <span id="zh-cn">中文说明</span>
 
-1. 将 `model-fallback/` 文件夹放到 QwenPaw 插件目录：
-   `~/.qwenpaw/plugins/model-fallback/`
+模型降级容灾插件。当主模型调用失败时，自动切换到备用模型链，内置熔断器保护。
 
-2. 重启 QwenPaw：`qwenpaw restart`
+---
 
-3. 通过 HTTP API 配置降级链：
+## Features / 功能
+
+- 🇬🇧 Auto-fallback to backup models on primary failure
+- 🇨🇳 主模型失败时自动降级到备用模型
+- 🔄 Multi-level cascade (primary → backup 1 → backup 2 → ...) / 支持多级降级
+- 🔁 Per-model retry config / 每个模型可独立配置重试次数
+- 🔥 Circuit breaker (skip dead endpoints, auto-recover) / 熔断器保护
+- 🖥️ Console UI configuration / 可视化配置
+- 💬 Slash command `/fallback` / 对话命令
+- 🌐 HTTP API for dynamic management
+
+---
+
+## Installation / 安装
 
 ```bash
-# 查询当前配置
-curl http://localhost:8000/api/plugin/model-fallback/config
+# Clone the plugin to OpenClaw plugins directory / 克隆到插件目录
+git clone https://github.com/yijiuzero/qwenpaw-model-fallback.git \
+  ~/.openclaw/plugins/model-fallback
 
-# 配置降级链
-curl -X POST http://localhost:8000/api/plugin/model-fallback/config \
-  -H "Content-Type: application/json" \
-  -d '{
-    "enabled": true,
-    "max_retries_per_model": 2,
-    "fallback_chain": [
-      {"provider_id": "deepseek_official", "model": "deepseek-chat"},
-      {"provider_id": "anthropic", "model": "claude-sonnet-4-20250514"}
-    ]
-  }'
+# Or download manually / 或手动下载放到:
+# ~/.openclaw/plugins/model-fallback/
 
-# 查看所有可用 Provider（用于选择合适的 provider_id）
-curl http://localhost:8000/api/plugin/model-fallback/providers
+# Restart OpenClaw / 重启 OpenClaw
 ```
 
-4. 修改配置后重启 QwenPaw 生效。
+---
 
-## 工作原理
+## Configuration / 配置
+
+### Console UI / 控制台界面
+
+Go to **Console → Tool Settings → Model Fallback** and fill in:
+
+1. **① Base URL** — API endpoint, e.g. `https://api.deepseek.com` / API 地址
+2. **① API Key** — Secret key / API 密钥
+3. **① Model** — Model name, e.g. `deepseek-chat` / 模型名称
+
+### Slash Command / 对话命令
 
 ```
-用户发消息 → Agent.create_model_and_formatter()
-                    ↓
-              被 FallbackChatModel 包装
-                    ↓
-              ┌─ 主模型（当前 active model）
-              │   └── 重试 N 次后仍失败
-              ↓
-              ├─ 备用模型 1（用户配置的第一个 fallback）
-              │   └── 重试 N 次后仍失败
-              ↓
-              ├─ 备用模型 2
-              │   └── ...
-              ↓
-              └─ 全部失败 → 报错
+/fallback                      Show status / 查看配置
+/fallback on|off               Enable/disable / 启用/禁用
+/fallback add <p>/<m>          Add backup / 添加备用模型
+/fallback remove <index>       Remove by index / 移除
+/fallback clear                Clear all / 清空
+/fallback retries <n>          Set retries / 设置重试次数
+/fallback cb                   Circuit breaker config / 熔断器配置
 ```
 
-## 配置说明
+---
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `enabled` | bool | 是否启用降级 |
-| `max_retries_per_model` | int | 每个模型的重试次数（默认 2） |
-| `fallback_chain` | array | 备用模型列表，按顺序尝试 |
-| `retryable_status_codes` | array | 触发降级的 HTTP 状态码 |
-| `exclude_status_codes` | array | 不降级的 HTTP 状态码（如 401） |
+## Architecture / 工作原理
 
-## 注意事项
+```
+User message / 用户发消息
+        ↓
+   Agent.model() called
+        ↓
+   FallbackChatModel wraps the call
+        ↓
+   ┌─ Primary model / 主模型
+   │   └── Retry N times / 重试 N 次
+   ↓
+   ├─ Backup model 1 / 备用模型 1
+   │   └── Retry N times / 重试 N 次
+   ↓
+   ├─ Backup model 2 / 备用模型 2
+   ↓
+   └─ All failed → Error / 全部失败 → 报错
+```
 
-- 插件通过 monkey-patch `model_factory.create_model_and_formatter` 实现
-- 如果 QwenPaw 核心代码大幅变更，可能需要更新插件
-- 降级时会在日志中打印 `[model-fallback]` 前缀的消息
+### Circuit Breaker / 熔断器
+
+```
+CLOSED ──(consecutive failures ≥ threshold)──► OPEN
+  OPEN ──(timeout seconds later)──────────────► HALF_OPEN
+  HALF_OPEN ──(successes ≥ threshold)────────► CLOSED
+  HALF_OPEN ──(failure)──────────────────────► OPEN
+```
+
+---
+
+## Error Handling / 错误处理
+
+| Status Code | Behavior / 行为 |
+|-------------|-----------------|
+| 401, 403    | ❌ Fatal, no cascade / 致命错误，不降级 |
+| 429, 5xx    | ✅ Transient, retry → cascade / 临时错误，重试后降级 |
+| ConnectionError | ✅ Cascade to backup / 触发降级 |
+| Timeout     | ✅ Cascade to backup / 触发降级 |
+
+---
+
+## License / 许可证
+
+MIT
